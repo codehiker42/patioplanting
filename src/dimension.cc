@@ -11,6 +11,10 @@ size_t Dimension::Size() const {
                          std::multiplies<>());
 }
 
+size_t Dimension::Size(const size_t axis_index) const {
+  return axis_index >= dim_elems_.size() ? 0 : dim_elems_.at(axis_index);
+}
+
 size_t Dimension::NumberOf() const { return dim_elems_.size(); }
 
 bool Dimension::operator==(const Dimension& another) const {

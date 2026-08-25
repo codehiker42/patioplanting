@@ -28,7 +28,7 @@ class Array {
   Array(const Array& other);
   Array(const Array&& other);
 
-  Array& operator=(const A<T>& other);
+  Array& operator=(const Array<T>& other);
 
   static Array<T> Zeros(const Dimension& dim);
   static Array<T> Ones(const Dimension& dim);

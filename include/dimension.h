@@ -14,6 +14,8 @@ class Dimension {
 
   size_t Size() const;
 
+  size_t Size(const size_t axis_index) const;
+
   size_t NumberOf() const;
 
   bool operator==(const Dimension& another) const;
