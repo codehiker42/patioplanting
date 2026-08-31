@@ -32,7 +32,8 @@ class ArrayData {
   enum class AllocationType { MainMemoryPacked, MainMemoryAligned };
 
   ArrayData();
-  ArrayData(const Dimension& dim,
+  template <size_t FirstAxis, size_t... RestAxis>
+  ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
             const AllocationType alloc_type = AllocationType::MainMemoryPacked);
   ArrayData(const ArrayData&) = delete;
   ArrayData& operator=(const ArrayData&) = delete;
@@ -49,10 +50,12 @@ template <typename T>
 ArrayData<T>::ArrayData() = default;
 
 template <typename T>
-ArrayData<T>::ArrayData(const Dimension& dim, const AllocationType alloc_type)
+template <size_t FirstAxis, size_t... RestAxis>
+ArrayData<T>::ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
+                        const AllocationType alloc_type)
     : alloc_type_(alloc_type) {
-  const size_t n_elems = dim.Size();
-  const size_t last_dim = dim.Size(dim.NumberOf() - 1);
+  constexpr size_t n_elems = dim.Size();
+  constexpr size_t last_dim = dim.Last();
 
   switch (alloc_type) {
     case AllocationType::MainMemoryPacked:
