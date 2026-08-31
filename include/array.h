@@ -11,7 +11,8 @@
 
 namespace pp1 {
 
-template <typename T = Types::DefaultRealT>
+template <typename T = Types::DefaultRealT, size_t FirstAxis = 1,
+          size_t... RestAxis>
 class Array {
  public:
   using reference = T&;
@@ -23,46 +24,55 @@ class Array {
   using const_pointer = std::add_const_t<T>*;
 
   Array() = default;
-  Array(std::initializer_list<T> init_list);
+  Array(std::initializer_list<T>& init_list);
   Array(const std::vector<T>& from_vec);
   Array(const Array& other);
   Array(const Array&& other);
 
-  Array& operator=(const Array<T>& other);
+  Array& operator=(const Array& other);
 
-  static Array<T> Zeros(const Dimension& dim);
-  static Array<T> Ones(const Dimension& dim);
-  static Array<T> Empty(const Dimension& dim);
+  template <size_t RhsFirstAxis, size_t... RhsRestAxis>
+  Array<T, RhsFirstAxis, RhsRestAxis...> Reshape(
+      Dimension<RhsFirstAxis, RhsRestAxis...>);
+
+  static Array Zeros();
+
+  static Array Ones();
+
+  static Array Empty();
+
   template <typename RandomGen>
-  static Array<T> Empty(const Dimension& dim, RandomGen&& gen);
-
-  const Dimension& Dim() const;
+  static Array Empty(RandomGen&& gen);
 
   Array operator*(const T scalar);
   Array operator-(const T scalar);
   Array operator+(const T scalar);
   Array operator/(const T scalar);
 
-  template<typename U>
+  template <typename U>
   Array& operator*=(const U scalar);
-  template<typename U>
+  template <typename U>
   Array& operator-=(const U scalar);
-  template<typename U>
+  template <typename U>
   Array& operator+=(const U scalar);
-  template<typename U>
+  template <typename U>
   Array& operator/=(const U scalar);
 
-  template<typename U>
-  Array<std::common_type_t<T, U>>& operator*=(const Array<U>& rhs);
-  template<typename U>
-  Array<std::common_type_t<T, U>>& operator/=(const Array<U>& rhs);
-  template<typename U>
-  Array<std::common_type_t<T, U>>& operator+=(const Array<U>& rhs);
-  template<typename U>
-  Array<std::common_type_t<T, U>>& operator-=(const Array<U>& rhs);
+  template <typename U>
+  Array<std::common_type_t<T, U>, FirstAxis, RestAxis...>& operator*=(
+      const Array<U, FirstAxis, RestAxis...>& rhs);
+  template <typename U>
+  Array<std::common_type_t<T, U>, FirstAxis, RestAxis...>& operator/=(
+      const Array<U, FirstAxis, RestAxis...>& rhs);
+  template <typename U>
+  Array<std::common_type_t<T, U>, FirstAxis, RestAxis...>& operator+=(
+      const Array<U, FirstAxis, RestAxis...>& rhs);
+  template <typename U>
+  Array<std::common_type_t<T, U>, FirstAxis, RestAxis...>& operator-=(
+      const Array<U, FirstAxis, RestAxis...>& rhs);
 
  private:
-  Dimension dim_;
+  Dimension<FirstAxis, RestAxis...> dim_;
   std::shared_ptr<ArrayData<T>> data_;
 };
 
