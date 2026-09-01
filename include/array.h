@@ -51,26 +51,40 @@ class Array {
   Array<T, RhsFirstAxis, RhsRestAxis...> Reshape(
       const Dimension<RhsFirstAxis, RhsRestAxis...>& dim_to_shape);
 
-      
-  static Array Zeros(
-      AllocationType alloc_type = AllocationType::MainMemoryPacked);
+  static Array Defaults(
+      AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::default_initializable<T>;
 
   static Array Ones(
-      AllocationType alloc_type = AllocationType::MainMemoryPacked);
+      AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::is_arithmetic_v<T>;
 
-  Array operator*(const T scalar);
-  Array operator-(const T scalar);
-  Array operator+(const T scalar);
-  Array operator/(const T scalar);
+  template <typename... Args>
+  static Array Emplace(Args... args, AllocationType alloc_type =
+                                         AllocationType::MainMemoryPacked)
+    requires std::is_constructible_v<T, Args...>;
+
+  Array operator*(const T scalar)
+    requires Multipliable<T>;
+  Array operator/(const T scalar)
+    requires Divisable<T>;
+  Array operator+(const T scalar)
+    requires Addable<T>;
+  Array operator-(const T scalar)
+    requires Subtractable<T>;
 
   template <typename U>
-  Array& operator*=(const U scalar);
+  Array& operator*=(const U scalar)
+    requires Multipliable<T>;
   template <typename U>
-  Array& operator-=(const U scalar);
+  Array& operator/=(const U scalar)
+    requires Divisable<T>;
   template <typename U>
-  Array& operator+=(const U scalar);
+  Array& operator+=(const U scalar)
+    requires Addable<T>;
   template <typename U>
-  Array& operator/=(const U scalar);
+  Array& operator-=(const U scalar)
+    requires Subtractable<T>;
 
   template <typename U>
   Array<std::common_type_t<T, U>, FirstAxis, RestAxis...>& operator*=(
