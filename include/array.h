@@ -9,14 +9,6 @@
 #include "dimension.h"
 #include "pp1_type.h"
 
-namespace {
-struct ErrMsg {
-  inline static const char* dim_size_mismatch_ =
-      "The number of arguments cannot form the given dimension";
-};
-
-};  // namespace
-
 namespace pp1 {
 
 template <typename T = Types::DefaultRealT, size_t FirstAxis = 1,
@@ -170,7 +162,7 @@ template <typename InputIterator>
 void Array<T, FirstAxis, RestAxis...>::InitBuffer(InputIterator begin,
                                                   InputIterator end,
                                                   AllocationType alloc_type) {
-  assert(std::distance(begin, end) == dim_.size(), ErrMsg::dim_size_mismatch_);
+  assert(std::distance(begin, end) == dim_.size());
   data_ = std::make_shared<ArrayData<T>>(dim_, alloc_type);
   data_->FillIn(begin, end);
 }
