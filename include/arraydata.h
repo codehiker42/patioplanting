@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <stdexcept>
+#include <type_traits>
 
 #include "dimension.h"
 #include "global_constants.h"
@@ -36,9 +37,16 @@ class ArrayData {
   template <size_t FirstAxis, size_t... RestAxis>
   ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
             const AllocationType alloc_type = AllocationType::MainMemoryPacked);
+
+  template <size_t FirstAxis, size_t... RestAxis>
+  ArrayData(const Dimension<FirstAxis, RestAxis...>& dim, const T& init,
+            const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::copyable<T>;
+
   template <size_t FirstAxis, size_t... RestAxis, typename... Args>
   ArrayData(int, const Dimension<FirstAxis, RestAxis...>& dim, Args... args,
-            const AllocationType alloc_type = AllocationType::MainMemoryPacked);
+            const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::is_constructible_v<T, Args...>;
 
   ArrayData(const ArrayData&) = delete;
   ArrayData& operator=(const ArrayData&) = delete;
@@ -52,6 +60,7 @@ class ArrayData {
   decltype(auto) NthElement(this Self&&, size_t n_th);
 
  private:
+  bool t_constructed_{false};
   AllocationType alloc_type_{AllocationType::MainMemoryPacked};
   size_t last_dim_{0};
   size_t n_elems_{0};
@@ -72,7 +81,9 @@ ArrayData<T>::ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
     case AllocationType::MainMemoryPacked: {
       stride_size_ = last_dim_;
       sentinel_ = n_elems_;
-      buffer_ = static_cast<pointer>(std::malloc(n_elems_ * sizeof(T)));
+      buffer_ = static_cast<pointer>(
+          ::operator new(n_elems_ * sizeof(T), std::align_val_t{alignof(T)}));
+
       break;
     }
     case AllocationType::MainMemoryAligned: {
@@ -93,26 +104,63 @@ ArrayData<T>::ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
 }
 
 template <typename T>
+template <size_t FirstAxis, size_t... RestAxis>
+ArrayData<T>::ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
+                        const T& init, const AllocationType alloc_type)
+  requires std::copyable<T>
+    : ArrayData(dim, alloc_type) {
+  const size_t offset = stride_size_ - last_dim_;
+  for (size_t i = 0, buf_index = 0; i < n_elems_; ++i, ++buf_index) {
+    if (buf_index != 0 && (i % last_dim_) == 0) {
+      buf_index += offset;
+    }
+    *(buffer_ + buf_index) = init;
+  }
+  t_constructed_ = true;
+}
+
+template <typename T>
 template <size_t FirstAxis, size_t... RestAxis, typename... Args>
 ArrayData<T>::ArrayData(int /* unused */,
                         const Dimension<FirstAxis, RestAxis...>& dim,
                         Args... args, const AllocationType alloc_type)
+  requires std::is_constructible_v<T, Args...>
     : ArrayData(dim, alloc_type) {
   static_assert(stride_size_ >= last_dim_, "Illegal state");
 
   const size_t offset = stride_size_ - last_dim_;
   for (size_t i = 0, buf_index = 0; i < n_elems_; ++i, ++buf_index) {
-    if (buf_index != 0 && (buf_index % last_dim_) == 0) {
+    if (buf_index != 0 && (i % last_dim_) == 0) {
       buf_index += offset;
     }
     std::construct_at<T>(buffer_ + buf_index, std::forward<Args>(args)...);
   }
+  t_constructed_ = true;
 }
 
 template <typename T>
 ArrayData<T>::~ArrayData() {
-  if (buffer_) {
-    std::free(buffer_);
+  if (buffer_ == 0) {
+    return;
+  }
+
+  const size_t offset = stride_size_ - last_dim_;
+  for (size_t i = 0, buf_index = 0; t_constructed_ && i < n_elems_;
+       ++i, ++buf_index) {
+    if (buf_index != 0 && (i % last_dim_) == 0) {
+      buf_index += offset;
+    }
+    std::destroy_at(buffer_ + buf_index);
+  }
+
+  switch (alloc_type_) {
+    case AllocationType::MainMemoryPacked:
+      ::operator delete(buffer_, sentinel_ * sizeof(T),
+                        std::align_val_t{alignof(T)});
+      break;
+    case AllocationType::MainMemoryAligned:
+      std::free(buffer_);
+      break;
   }
 }
 
