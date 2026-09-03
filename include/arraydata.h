@@ -159,15 +159,19 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
   requires std::copyable<T> && std::is_destructible_v<T>
     : ArrayData(alloc_type, dim) {
   IT iter = begin;
+  bool stop_copying = false;
   t_constructed_ = ForEach(
       [&](pointer p_t) {
         if (iter != end) {
           *p_t = *iter++;
         } else if constexpr (std::is_default_constructible_v<T>) {
           std::construct_at<T>(p_t);
+        } else {
+          stop_copying = true;
         }
       },
-      [&]() { return true; }, [](pointer p_t) { std::destroy_at(p_t); });
+      [&]() { return !stop_copying; },
+      [](pointer p_t) { std::destroy_at(p_t); });
 }
 
 template <typename T>
