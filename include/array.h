@@ -23,38 +23,43 @@ class Array {
   using pointer = T*;
   using const_pointer = std::add_const_t<T>*;
 
-  Array() = delete;
-  Array(AllocationType alloc_type = AllocationType::MainMemoryPacked);
-  Array(std::initializer_list<T> init_list,
-        AllocationType alloc_type = AllocationType::MainMemoryPacked);
-  Array(const std::vector<T>& from_vec,
-        AllocationType alloc_type = AllocationType::MainMemoryPacked);
-  template <typename InputIterator>
-  Array(InputIterator begin, InputIterator end,
-        AllocationType alloc_type = AllocationType::MainMemoryPacked);
-
   Array(const Array& other) noexcept;
   Array(const Array&& other) noexcept;
 
   Array& operator=(const Array& other) noexcept;
   Array& operator=(Array&& other) noexcept;
 
+  Array(AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::default_initializable<T>;
+
+  template <std::input_iterator IT>
+  Array(IT begin, IT end,
+        AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::copyable<T>;
+
+  Array(std::initializer_list<T> init_list,
+        AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::copyable<T>;
+
+  Array(const std::vector<T>& from_vec,
+        AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::copyable<T>;
+
+  Array(const T& t,
+        AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::copyable<T>;
+
+  template <typename... Args>
+  Array(Args&&... args)
+    requires std::is_constructible_v<T, Args...>;
+
+  template <typename... Args>
+  Array(AllocationType alloc_type, Args&&... args)
+    requires std::is_constructible_v<T, Args...>;
+
   template <size_t RhsFirstAxis, size_t... RhsRestAxis>
   Array<T, RhsFirstAxis, RhsRestAxis...> Reshape(
       const Dimension<RhsFirstAxis, RhsRestAxis...>& dim_to_shape);
-
-  static Array Defaults(
-      AllocationType alloc_type = AllocationType::MainMemoryPacked)
-    requires std::default_initializable<T>;
-
-  static Array Ones(
-      AllocationType alloc_type = AllocationType::MainMemoryPacked)
-    requires std::is_arithmetic_v<T>;
-
-  template <typename... Args>
-  static Array Emplace(Args... args, AllocationType alloc_type =
-                                         AllocationType::MainMemoryPacked)
-    requires std::is_constructible_v<T, Args...>;
 
   Array operator*(const T scalar)
     requires Multipliable<T>;
@@ -92,38 +97,12 @@ class Array {
       const Array<U, FirstAxis, RestAxis...>& rhs);
 
  private:
-  template <typename InputIterator>
-  void InitBuffer(InputIterator begin, InputIterator end,
-                  AllocationType alloc_type);
+  template <std::input_iterator IT>
+  void InitBuffer(IT begin, IT end, AllocationType alloc_type);
 
   Dimension<FirstAxis, RestAxis...> dim_;
   std::shared_ptr<ArrayData<T>> data_;
 };
-
-template <typename T, size_t FirstAxis, size_t... RestAxis>
-Array<T, FirstAxis, RestAxis...>::Array(AllocationType alloc_type)
-    : data_(dim_, alloc_type) {}
-
-template <typename T, size_t FirstAxis, size_t... RestAxis>
-Array<T, FirstAxis, RestAxis...>::Array(std::initializer_list<T> init_list,
-                                        AllocationType alloc_type) {
-  static_assert(init_list.size() == dim_.Size(),
-                "The number of arguments cannot form the given dimension");
-  InitBuffer(init_list.begin(), init_list.end(), alloc_type);
-}
-
-template <typename T, size_t FirstAxis, size_t... RestAxis>
-Array<T, FirstAxis, RestAxis...>::Array(const std::vector<T>& from_vec,
-                                        AllocationType alloc_type) {
-  InitBuffer(from_vec.begin(), from_vec.end(), alloc_type);
-}
-
-template <typename T, size_t FirstAxis, size_t... RestAxis>
-template <typename InputIterator>
-Array<T, FirstAxis, RestAxis...>::Array(InputIterator begin, InputIterator end,
-                                        AllocationType alloc_type) {
-  InitBuffer(begin, end, alloc_type);
-}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 Array<T, FirstAxis, RestAxis...>::Array(const Array& other) noexcept {
@@ -146,6 +125,51 @@ Array<T, FirstAxis, RestAxis...>& Array<T, FirstAxis, RestAxis...>::operator=(
 }
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
+Array<T, FirstAxis, RestAxis...>::Array(AllocationType alloc_type)
+  requires std::default_initializable<T>
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_)) {}
+
+template <typename T, size_t FirstAxis, size_t... RestAxis>
+template <std::input_iterator IT>
+Array<T, FirstAxis, RestAxis...>::Array(IT begin, IT end,
+                                        AllocationType alloc_type)
+  requires std::copyable<T>
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, begin, end)) {}
+
+template <typename T, size_t FirstAxis, size_t... RestAxis>
+Array<T, FirstAxis, RestAxis...>::Array(std::initializer_list<T> init_list,
+                                        AllocationType alloc_type)
+  requires std::copyable<T>
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, init_list.begin(),
+                                           init_list.end())) {}
+
+template <typename T, size_t FirstAxis, size_t... RestAxis>
+Array<T, FirstAxis, RestAxis...>::Array(const std::vector<T>& from_vec,
+                                        AllocationType alloc_type)
+  requires std::copyable<T>
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, from_vec.begin(),
+                                           from_vec.end())) {}
+
+template <typename T, size_t FirstAxis, size_t... RestAxis>
+Array<T, FirstAxis, RestAxis...>::Array(const T& t, AllocationType alloc_type)
+  requires std::copyable<T>
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, t)) {}
+
+template <typename T, size_t FirstAxis, size_t... RestAxis>
+template <typename... Args>
+Array<T, FirstAxis, RestAxis...>::Array(Args&&... args)
+  requires std::is_constructible_v<T, Args...>
+    : data_(std::make_shared<ArrayData<T>>(AllocationType::MainMemoryPacked,
+                                           dim_, args...)) {}
+
+template <typename T, size_t FirstAxis, size_t... RestAxis>
+template <typename... Args>
+Array<T, FirstAxis, RestAxis...>::Array(AllocationType alloc_type,
+                                        Args&&... args)
+  requires std::is_constructible_v<T, Args...>
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, args...)) {}
+
+template <typename T, size_t FirstAxis, size_t... RestAxis>
 template <size_t RhsFirstAxis, size_t... RhsRestAxis>
 Array<T, RhsFirstAxis, RhsRestAxis...>
 Array<T, FirstAxis, RestAxis...>::Reshape(
@@ -158,9 +182,8 @@ Array<T, FirstAxis, RestAxis...>::Reshape(
 }
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
-template <typename InputIterator>
-void Array<T, FirstAxis, RestAxis...>::InitBuffer(InputIterator begin,
-                                                  InputIterator end,
+template <std::input_iterator IT>
+void Array<T, FirstAxis, RestAxis...>::InitBuffer(IT begin, IT end,
                                                   AllocationType alloc_type) {
   assert(std::distance(begin, end) == dim_.size());
   data_ = std::make_shared<ArrayData<T>>(dim_, alloc_type);

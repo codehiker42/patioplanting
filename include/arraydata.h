@@ -45,7 +45,7 @@ class ArrayData {
 
   template <size_t FirstAxis, size_t... RestAxis, typename... Args>
   ArrayData(const AllocationType alloc_type,
-            const Dimension<FirstAxis, RestAxis...>& dim, Args... args)
+            const Dimension<FirstAxis, RestAxis...>& dim, Args&&... args)
     requires std::is_constructible_v<T, Args...> && std::is_destructible_v<T>;
 
   template <size_t FirstAxis, size_t... RestAxis, typename IT>
@@ -139,7 +139,7 @@ template <typename T>
 template <size_t FirstAxis, size_t... RestAxis, typename... Args>
 ArrayData<T>::ArrayData(const AllocationType alloc_type,
                         const Dimension<FirstAxis, RestAxis...>& dim,
-                        Args... args)
+                        Args&&... args)
   requires std::is_constructible_v<T, Args...> && std::is_destructible_v<T>
     : ArrayData(alloc_type, dim) {
   assert(stride_size_ >= last_dim_);
