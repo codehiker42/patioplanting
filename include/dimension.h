@@ -48,7 +48,11 @@ Dimension<FirstAxis, RestAxis...>::Dimension() = default;
 
 template <size_t FirstAxis, size_t... RestAxis>
 constexpr size_t Dimension<FirstAxis, RestAxis...>::Size() {
-  return (FirstAxis * (RestAxis * ...));
+  if constexpr (sizeof...(RestAxis)) {
+    return (FirstAxis * (RestAxis * ...));
+  } else {
+    return FirstAxis;
+  }
 }
 
 template <size_t FirstAxis, size_t... RestAxis>
