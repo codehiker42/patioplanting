@@ -59,7 +59,8 @@ class ArrayData {
   ~ArrayData();
 
   template <std::input_iterator InputIt>
-  bool FillIn(InputIt begin, InputIt end);
+  bool FillIn(InputIt begin, InputIt end)
+    requires std::copyable<T> && std::is_destructible_v<T>;
 
   template <typename Self>
   decltype(auto) NthElement(this Self&&, size_t n_th);
@@ -157,7 +158,16 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
                         IT end)
   requires std::copyable<T> && std::is_destructible_v<T>
     : ArrayData(alloc_type, dim) {
-  t_constructed_ = FillIn(begin, end);
+  IT iter = begin;
+  t_constructed_ = ForEach(
+      [&](pointer p_t) {
+        if (iter != end) {
+          *p_t = *iter++;
+        } else if constexpr (std::is_default_constructible_v<T>) {
+          std::construct_at<T>(p_t);
+        }
+      },
+      [&]() { return true; }, [](pointer p_t) { std::destroy_at(p_t); });
 }
 
 template <typename T>
@@ -188,7 +198,9 @@ ArrayData<T>::~ArrayData() {
 
 template <typename T>
 template <std::input_iterator IT>
-bool ArrayData<T>::FillIn(IT begin, IT end) {
+bool ArrayData<T>::FillIn(IT begin, IT end)
+  requires std::copyable<T> && std::is_destructible_v<T>
+{
   IT iter = begin;
   return ForEach([&](pointer p_t) { *p_t = *iter++; },
                  [&]() { return iter != end; },
