@@ -41,12 +41,12 @@ class ArrayData {
   template <size_t FirstAxis, size_t... RestAxis>
   ArrayData(const Dimension<FirstAxis, RestAxis...>& dim, const T& init,
             const AllocationType alloc_type = AllocationType::MainMemoryPacked)
-    requires std::copyable<T>;
+    requires std::copyable<T> && std::is_destructible_v<T>;
 
   template <size_t FirstAxis, size_t... RestAxis, typename... Args>
   ArrayData(int, const Dimension<FirstAxis, RestAxis...>& dim, Args... args,
             const AllocationType alloc_type = AllocationType::MainMemoryPacked)
-    requires std::is_constructible_v<T, Args...>;
+    requires std::is_constructible_v<T, Args...> && std::is_destructible_v<T>;
 
   ArrayData(const ArrayData&) = delete;
   ArrayData& operator=(const ArrayData&) = delete;
@@ -54,12 +54,16 @@ class ArrayData {
   ~ArrayData();
 
   template <typename InputIt>
-  void FillIn(InputIt begin, InputIt end);
+  bool FillIn(InputIt begin, InputIt end);
 
   template <typename Self>
   decltype(auto) NthElement(this Self&&, size_t n_th);
 
  private:
+  template <std::invocable<pointer> AcEach, std::invocable Senti,
+            std::invocable<pointer> AcUndo>
+  bool ForEach(AcEach&& each_ac, Senti&& senti, AcUndo&& undo_ac);
+
   bool t_constructed_{false};
   AllocationType alloc_type_{AllocationType::MainMemoryPacked};
   size_t last_dim_{0};
@@ -107,16 +111,10 @@ template <typename T>
 template <size_t FirstAxis, size_t... RestAxis>
 ArrayData<T>::ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
                         const T& init, const AllocationType alloc_type)
-  requires std::copyable<T>
+  requires std::copyable<T> && std::is_destructible_v<T>
     : ArrayData(dim, alloc_type) {
-  const size_t offset = stride_size_ - last_dim_;
-  for (size_t i = 0, buf_index = 0; i < n_elems_; ++i, ++buf_index) {
-    if (buf_index != 0 && (i % last_dim_) == 0) {
-      buf_index += offset;
-    }
-    *(buffer_ + buf_index) = init;
-  }
-  t_constructed_ = true;
+  t_constructed_ = ForEach([&](pointer p_t) { *p_t = init; },
+                           []() { return true; }, []() {});
 }
 
 template <typename T>
@@ -124,18 +122,14 @@ template <size_t FirstAxis, size_t... RestAxis, typename... Args>
 ArrayData<T>::ArrayData(int /* unused */,
                         const Dimension<FirstAxis, RestAxis...>& dim,
                         Args... args, const AllocationType alloc_type)
-  requires std::is_constructible_v<T, Args...>
+  requires std::is_constructible_v<T, Args...> && std::is_destructible_v<T>
     : ArrayData(dim, alloc_type) {
   static_assert(stride_size_ >= last_dim_, "Illegal state");
-
-  const size_t offset = stride_size_ - last_dim_;
-  for (size_t i = 0, buf_index = 0; i < n_elems_; ++i, ++buf_index) {
-    if (buf_index != 0 && (i % last_dim_) == 0) {
-      buf_index += offset;
-    }
-    std::construct_at<T>(buffer_ + buf_index, std::forward<Args>(args)...);
-  }
-  t_constructed_ = true;
+  t_constructed_ = ForEach(
+      [&](pointer p_t) {
+        std::construct_at<T>(p_t, std::forward<Args>(args)...);
+      },
+      []() { return true; }, [](pointer p_t) { std::destroy_at(p_t); });
 }
 
 template <typename T>
@@ -166,16 +160,11 @@ ArrayData<T>::~ArrayData() {
 
 template <typename T>
 template <typename InputIt>
-void ArrayData<T>::FillIn(InputIt begin, InputIt end) {
-  const size_t offset = stride_size_ - last_dim_;
+bool ArrayData<T>::FillIn(InputIt begin, InputIt end) {
   InputIt iter = begin;
-  for (size_t i = 0, buf_index = 0; i < n_elems_ && iter != end;
-       ++i, ++buf_index, ++iter) {
-    if (buf_index != 0 && (i % last_dim_) == 0) {
-      buf_index += offset;
-    }
-    *(buffer_ + buf_index) = *iter;
-  }
+  return ForEach([&](pointer p_t) { *p_t = *iter++; },
+                 [&]() { return iter != end; },
+                 [](pointer p_t) { std::destroy_at(p_t); });
 }
 
 template <typename T>
@@ -187,6 +176,34 @@ decltype(auto) ArrayData<T>::NthElement(this Self&& self, size_t n_th) {
     throw std::out_of_range("Out of range");
   }
   return *(std::forward<Self>(self).buffer_ + index);
+}
+
+template <typename T>
+template <std::invocable<typename ArrayData<T>::pointer> AcEach,
+          std::invocable Senti,
+          std::invocable<typename ArrayData<T>::pointer> AcUndo>
+bool ArrayData<T>::ForEach(AcEach&& each_ac, Senti&& senti, AcUndo&& undo_ac) {
+  const size_t offset = stride_size_ - last_dim_;
+  size_t n_succ = 0;
+  try {
+    for (size_t i = 0, buf_index = 0; senti() && i < n_elems_;
+         ++i, ++buf_index) {
+      if (buf_index != 0 && (i % last_dim_) == 0) {
+        buf_index += offset;
+      }
+      each_ac(buffer_ + buf_index);
+      ++n_succ;
+    }
+    return true;
+  } catch (...) {
+    for (size_t i = 0, buf_index = 0; i < n_succ; ++i, ++buf_index) {
+      if (buf_index != 0 && (i % last_dim_) == 0) {
+        buf_index += offset;
+      }
+      undo_ac(buffer_ + buf_index);
+    }
+    return false;
+  }
 }
 
 }  // namespace pp1
