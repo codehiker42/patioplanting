@@ -8,6 +8,7 @@
 #include "arraydata.h"
 #include "dimension.h"
 #include "pp1_type.h"
+#include "pp1_utility.h"
 
 namespace pp1 {
 
@@ -29,32 +30,29 @@ class Array {
   Array& operator=(const Array& other) noexcept;
   Array& operator=(Array&& other) noexcept;
 
-  Array(AllocationType alloc_type = AllocationType::MainMemoryPacked)
+  Array(const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::default_initializable<T>;
 
   template <std::input_iterator IT>
   Array(IT begin, IT end,
-        AllocationType alloc_type = AllocationType::MainMemoryPacked)
+        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
   Array(std::initializer_list<T> init_list,
-        AllocationType alloc_type = AllocationType::MainMemoryPacked)
+        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
   Array(const std::vector<T>& from_vec,
-        AllocationType alloc_type = AllocationType::MainMemoryPacked)
+        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
   Array(const T& t,
-        AllocationType alloc_type = AllocationType::MainMemoryPacked)
+        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
   template <typename... Args>
-  Array(Args&&... args)
-    requires std::is_constructible_v<T, Args...>;
-
-  template <typename... Args>
-  Array(AllocationType alloc_type, Args&&... args)
+  Array(std::tuple<Args...>&& arg_tuple,
+        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::is_constructible_v<T, Args...>;
 
   template <size_t RhsFirstAxis, size_t... RhsRestAxis>
@@ -125,49 +123,49 @@ Array<T, FirstAxis, RestAxis...>& Array<T, FirstAxis, RestAxis...>::operator=(
 }
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
-Array<T, FirstAxis, RestAxis...>::Array(AllocationType alloc_type)
+Array<T, FirstAxis, RestAxis...>::Array(const AllocationType alloc_type)
   requires std::default_initializable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_)) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 template <std::input_iterator IT>
 Array<T, FirstAxis, RestAxis...>::Array(IT begin, IT end,
-                                        AllocationType alloc_type)
+                                        const AllocationType alloc_type)
   requires std::copyable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, begin, end)) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 Array<T, FirstAxis, RestAxis...>::Array(std::initializer_list<T> init_list,
-                                        AllocationType alloc_type)
+                                        const AllocationType alloc_type)
   requires std::copyable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, init_list.begin(),
                                            init_list.end())) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 Array<T, FirstAxis, RestAxis...>::Array(const std::vector<T>& from_vec,
-                                        AllocationType alloc_type)
+                                        const AllocationType alloc_type)
   requires std::copyable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, from_vec.begin(),
                                            from_vec.end())) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
-Array<T, FirstAxis, RestAxis...>::Array(const T& t, AllocationType alloc_type)
+Array<T, FirstAxis, RestAxis...>::Array(const T& t,
+                                        const AllocationType alloc_type)
   requires std::copyable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, t)) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 template <typename... Args>
-Array<T, FirstAxis, RestAxis...>::Array(Args&&... args)
+Array<T, FirstAxis, RestAxis...>::Array(std::tuple<Args...>&& arg_tuple,
+                                        const AllocationType alloc_type)
   requires std::is_constructible_v<T, Args...>
-    : data_(std::make_shared<ArrayData<T>>(AllocationType::MainMemoryPacked,
-                                           dim_, args...)) {}
+    : data_(std::apply(
+          [&](Args&&... args) {
+            return std::make_shared<ArrayData<T>>(alloc_type, dim_, args...);
+          },
+          arg_tuple)
 
-template <typename T, size_t FirstAxis, size_t... RestAxis>
-template <typename... Args>
-Array<T, FirstAxis, RestAxis...>::Array(AllocationType alloc_type,
-                                        Args&&... args)
-  requires std::is_constructible_v<T, Args...>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, args...)) {}
+      ) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 template <size_t RhsFirstAxis, size_t... RhsRestAxis>
