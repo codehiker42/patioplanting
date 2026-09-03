@@ -35,25 +35,30 @@ class ArrayData {
 
   ArrayData();
   template <size_t FirstAxis, size_t... RestAxis>
-  ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
-            const AllocationType alloc_type = AllocationType::MainMemoryPacked);
+  ArrayData(const AllocationType alloc_type,
+            const Dimension<FirstAxis, RestAxis...>& dim);
 
   template <size_t FirstAxis, size_t... RestAxis>
-  ArrayData(const Dimension<FirstAxis, RestAxis...>& dim, const T& init,
-            const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+  ArrayData(const AllocationType alloc_type,
+            const Dimension<FirstAxis, RestAxis...>& dim, const T& init)
     requires std::copyable<T> && std::is_destructible_v<T>;
 
   template <size_t FirstAxis, size_t... RestAxis, typename... Args>
-  ArrayData(int, const Dimension<FirstAxis, RestAxis...>& dim, Args... args,
-            const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+  ArrayData(const AllocationType alloc_type,
+            const Dimension<FirstAxis, RestAxis...>& dim, Args... args)
     requires std::is_constructible_v<T, Args...> && std::is_destructible_v<T>;
+
+  template <size_t FirstAxis, size_t... RestAxis, typename IT>
+  ArrayData(const AllocationType alloc_type,
+            const Dimension<FirstAxis, RestAxis...>& dim, IT begin, IT end)
+    requires std::copyable<T> && std::is_destructible_v<T>;
 
   ArrayData(const ArrayData&) = delete;
   ArrayData& operator=(const ArrayData&) = delete;
   ArrayData(ArrayData&& rhs);
   ~ArrayData();
 
-  template <typename InputIt>
+  template <std::input_iterator InputIt>
   bool FillIn(InputIt begin, InputIt end);
 
   template <typename Self>
@@ -78,8 +83,8 @@ ArrayData<T>::ArrayData() = default;
 
 template <typename T>
 template <size_t FirstAxis, size_t... RestAxis>
-ArrayData<T>::ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
-                        const AllocationType alloc_type)
+ArrayData<T>::ArrayData(const AllocationType alloc_type,
+                        const Dimension<FirstAxis, RestAxis...>& dim)
     : alloc_type_(alloc_type), last_dim_(dim.Last()), n_elems_(dim.Size()) {
   switch (alloc_type) {
     case AllocationType::MainMemoryPacked: {
@@ -109,27 +114,50 @@ ArrayData<T>::ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
 
 template <typename T>
 template <size_t FirstAxis, size_t... RestAxis>
-ArrayData<T>::ArrayData(const Dimension<FirstAxis, RestAxis...>& dim,
-                        const T& init, const AllocationType alloc_type)
+ArrayData<T>::ArrayData(const AllocationType alloc_type,
+                        const Dimension<FirstAxis, RestAxis...>& dim,
+                        const T& init)
   requires std::copyable<T> && std::is_destructible_v<T>
-    : ArrayData(dim, alloc_type) {
-  t_constructed_ = ForEach([&](pointer p_t) { *p_t = init; },
-                           []() { return true; }, []() {});
+    : ArrayData(alloc_type, dim) {
+  t_constructed_ = ForEach(
+      [&](pointer p_t) {
+        if constexpr (std::is_trivially_copyable_v<T>) {
+          *p_t = init;
+        } else {
+          std::construct_at(p_t, std::forward(init));
+        }
+      },
+      []() { return true; },
+      [](pointer p_t) {
+        if constexpr (!std::is_trivially_copyable_v<T>) {
+          std::destroy_at(p_t);
+        }
+      });
 }
 
 template <typename T>
 template <size_t FirstAxis, size_t... RestAxis, typename... Args>
-ArrayData<T>::ArrayData(int /* unused */,
+ArrayData<T>::ArrayData(const AllocationType alloc_type,
                         const Dimension<FirstAxis, RestAxis...>& dim,
-                        Args... args, const AllocationType alloc_type)
+                        Args... args)
   requires std::is_constructible_v<T, Args...> && std::is_destructible_v<T>
-    : ArrayData(dim, alloc_type) {
-  static_assert(stride_size_ >= last_dim_, "Illegal state");
+    : ArrayData(alloc_type, dim) {
+  assert(stride_size_ >= last_dim_);
   t_constructed_ = ForEach(
       [&](pointer p_t) {
         std::construct_at<T>(p_t, std::forward<Args>(args)...);
       },
       []() { return true; }, [](pointer p_t) { std::destroy_at(p_t); });
+}
+
+template <typename T>
+template <size_t FirstAxis, size_t... RestAxis, typename IT>
+ArrayData<T>::ArrayData(const AllocationType alloc_type,
+                        const Dimension<FirstAxis, RestAxis...>& dim, IT begin,
+                        IT end)
+  requires std::copyable<T> && std::is_destructible_v<T>
+    : ArrayData(alloc_type, dim) {
+  t_constructed_ = FillIn(begin, end);
 }
 
 template <typename T>
@@ -159,9 +187,9 @@ ArrayData<T>::~ArrayData() {
 }
 
 template <typename T>
-template <typename InputIt>
-bool ArrayData<T>::FillIn(InputIt begin, InputIt end) {
-  InputIt iter = begin;
+template <std::input_iterator IT>
+bool ArrayData<T>::FillIn(IT begin, IT end) {
+  IT iter = begin;
   return ForEach([&](pointer p_t) { *p_t = *iter++; },
                  [&]() { return iter != end; },
                  [](pointer p_t) { std::destroy_at(p_t); });
