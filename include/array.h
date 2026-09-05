@@ -46,14 +46,14 @@ class Array {
         const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
-  Array(const T& t,
+  Array(T&& t,
         const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
-  template <typename... Args>
-  Array(std::tuple<Args...>&& arg_tuple,
-        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
-    requires std::is_constructible_v<T, Args...>;
+  template <typename FirstTuple, typename... RestTuples>
+  Array(const AllocationType alloc_type, FirstTuple&& first_elem,
+        RestTuples&&... rest_elems)
+    requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...);
 
   template <size_t RhsFirstAxis, size_t... RhsRestAxis>
   Array<T, RhsFirstAxis, RhsRestAxis...> Reshape(
@@ -149,23 +149,20 @@ Array<T, FirstAxis, RestAxis...>::Array(const std::vector<T>& from_vec,
                                            from_vec.end())) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
-Array<T, FirstAxis, RestAxis...>::Array(const T& t,
-                                        const AllocationType alloc_type)
+Array<T, FirstAxis, RestAxis...>::Array(T&& t, const AllocationType alloc_type)
   requires std::copyable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, t)) {}
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_,
+                                           std::forward<T>(t))) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
-template <typename... Args>
-Array<T, FirstAxis, RestAxis...>::Array(std::tuple<Args...>&& arg_tuple,
-                                        const AllocationType alloc_type)
-  requires std::is_constructible_v<T, Args...>
-    : data_(std::apply(
-          [&](Args&&... args) {
-            return std::make_shared<ArrayData<T>>(alloc_type, dim_, args...);
-          },
-          arg_tuple)
-
-      ) {}
+template <typename FirstTuple, typename... RestTuples>
+Array<T, FirstAxis, RestAxis...>::Array(const AllocationType alloc_type,
+                                        FirstTuple&& first_elem,
+                                        RestTuples&&... rest_elems)
+  requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...)
+    : data_(std::make_shared<ArrayData<T>>(
+          alloc_type, dim_, std::forward<FirstTuple>(first_elem),
+          std::forward<RestTuples>(rest_elems)...)) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 template <size_t RhsFirstAxis, size_t... RhsRestAxis>
