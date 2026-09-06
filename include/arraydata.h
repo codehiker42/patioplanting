@@ -7,7 +7,7 @@
 #include <tuple>
 #include <type_traits>
 
-#include "dimension.h"
+#include "domain.h"
 #include "global_constants.h"
 #include "pp1_type.h"
 
@@ -37,23 +37,23 @@ class ArrayData {
   ArrayData();
   template <size_t FirstAxis, size_t... RestAxis>
   ArrayData(const AllocationType alloc_type,
-            const Dimension<FirstAxis, RestAxis...>& dim);
+            const Domain<FirstAxis, RestAxis...>& dim);
 
   template <size_t FirstAxis, size_t... RestAxis>
   ArrayData(const AllocationType alloc_type,
-            const Dimension<FirstAxis, RestAxis...>& dim, T&& init)
+            const Domain<FirstAxis, RestAxis...>& dim, T&& init)
     requires std::copyable<T> && std::is_destructible_v<T>;
 
   template <size_t FirstAxis, size_t... RestAxis, std::input_iterator IT>
   ArrayData(const AllocationType alloc_type,
-            const Dimension<FirstAxis, RestAxis...>& dim, IT begin, IT end)
+            const Domain<FirstAxis, RestAxis...>& dim, IT begin, IT end)
     requires std::copyable<T> && std::is_destructible_v<T>;
 
   template <size_t FirstAxis, size_t... RestAxis, typename... Args,
             typename FirstTuple, typename... RestTuples>
   ArrayData(const AllocationType alloc_type,
-            const Dimension<FirstAxis, RestAxis...>& dim,
-            FirstTuple&& first_elem, RestTuples&&... rest_elems)
+            const Domain<FirstAxis, RestAxis...>& dim, FirstTuple&& first_elem,
+            RestTuples&&... rest_elems)
     requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...);
 
   ArrayData(const ArrayData&) = delete;
@@ -90,7 +90,7 @@ ArrayData<T>::ArrayData() = default;
 template <typename T>
 template <size_t FirstAxis, size_t... RestAxis>
 ArrayData<T>::ArrayData(const AllocationType alloc_type,
-                        const Dimension<FirstAxis, RestAxis...>& dim)
+                        const Domain<FirstAxis, RestAxis...>& dim)
     : alloc_type_(alloc_type), last_dim_(dim.Last()), n_elems_(dim.Size()) {
   switch (alloc_type) {
     case AllocationType::MainMemoryPacked: {
@@ -121,7 +121,7 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
 template <typename T>
 template <size_t FirstAxis, size_t... RestAxis>
 ArrayData<T>::ArrayData(const AllocationType alloc_type,
-                        const Dimension<FirstAxis, RestAxis...>& dim, T&& init)
+                        const Domain<FirstAxis, RestAxis...>& dim, T&& init)
   requires std::copyable<T> && std::is_destructible_v<T>
     : ArrayData(alloc_type, dim) {
   ForEach(
@@ -144,7 +144,7 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
 template <typename T>
 template <size_t FirstAxis, size_t... RestAxis, std::input_iterator IT>
 ArrayData<T>::ArrayData(const AllocationType alloc_type,
-                        const Dimension<FirstAxis, RestAxis...>& dim, IT begin,
+                        const Domain<FirstAxis, RestAxis...>& dim, IT begin,
                         IT end)
   requires std::copyable<T> && std::is_destructible_v<T>
     : ArrayData(alloc_type, dim) {
@@ -169,7 +169,7 @@ template <typename T>
 template <size_t FirstAxis, size_t... RestAxis, typename... Args,
           typename FirstTuple, typename... RestTuples>
 ArrayData<T>::ArrayData(const AllocationType alloc_type,
-                        const Dimension<FirstAxis, RestAxis...>& dim,
+                        const Domain<FirstAxis, RestAxis...>& dim,
                         FirstTuple&& first_elem, RestTuples&&... rest_elems)
   requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...)
     : ArrayData(alloc_type, dim) {

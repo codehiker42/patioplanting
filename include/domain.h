@@ -1,5 +1,5 @@
-#ifndef _PP1_DIMENSION_H_
-#define _PP1_DIMENSION_H_
+#ifndef _PP1_DOMAIN_H_
+#define _PP1_DOMAIN_H_
 
 #include <array>
 #include <cstddef>
@@ -24,9 +24,9 @@ constexpr void AppendAxis(std::string& result, size_t axis) {
 namespace pp1 {
 
 template <size_t FirstAxis, size_t... RestAxis>
-struct Dimension {
+struct Domain {
  public:
-  Dimension();
+  Domain();
 
   static constexpr size_t Size();
 
@@ -40,14 +40,14 @@ struct Dimension {
 
   template <size_t AFirstAxis, size_t... ARestAxis>
   friend std::ostream& operator<<(
-      std::ostream& os, const Dimension<AFirstAxis, ARestAxis...>& dim);
+      std::ostream& os, const Domain<AFirstAxis, ARestAxis...>& dim);
 };
 
 template <size_t FirstAxis, size_t... RestAxis>
-Dimension<FirstAxis, RestAxis...>::Dimension() = default;
+Domain<FirstAxis, RestAxis...>::Domain() = default;
 
 template <size_t FirstAxis, size_t... RestAxis>
-constexpr size_t Dimension<FirstAxis, RestAxis...>::Size() {
+constexpr size_t Domain<FirstAxis, RestAxis...>::Size() {
   if constexpr (sizeof...(RestAxis)) {
     return (FirstAxis * (RestAxis * ...));
   } else {
@@ -56,7 +56,7 @@ constexpr size_t Dimension<FirstAxis, RestAxis...>::Size() {
 }
 
 template <size_t FirstAxis, size_t... RestAxis>
-constexpr size_t Dimension<FirstAxis, RestAxis...>::Size(
+constexpr size_t Domain<FirstAxis, RestAxis...>::Size(
     const size_t axis_index) {
   if constexpr (sizeof...(RestAxis) == 0) {
     return FirstAxis;
@@ -66,12 +66,12 @@ constexpr size_t Dimension<FirstAxis, RestAxis...>::Size(
 }
 
 template <size_t FirstAxis, size_t... RestAxis>
-constexpr size_t Dimension<FirstAxis, RestAxis...>::NumberOf() {
+constexpr size_t Domain<FirstAxis, RestAxis...>::NumberOf() {
   return sizeof...(RestAxis) + 1;
 }
 
 template <size_t FirstAxis, size_t... RestAxis>
-constexpr size_t Dimension<FirstAxis, RestAxis...>::Last() {
+constexpr size_t Domain<FirstAxis, RestAxis...>::Last() {
   if constexpr (sizeof...(RestAxis) == 0) {
     return FirstAxis;
   }
@@ -81,8 +81,8 @@ constexpr size_t Dimension<FirstAxis, RestAxis...>::Last() {
 }
 
 template <size_t FirstAxis, size_t... RestAxis>
-constexpr std::string Dimension<FirstAxis, RestAxis...>::ToString() {
-  std::string repr{"Dimension ["};
+constexpr std::string Domain<FirstAxis, RestAxis...>::ToString() {
+  std::string repr{"Domain ["};
   const std::string sep(", ");
   AppendAxis(repr, FirstAxis);
 
@@ -95,7 +95,7 @@ constexpr std::string Dimension<FirstAxis, RestAxis...>::ToString() {
 
 template <size_t FirstAxis, size_t... RestAxis>
 std::ostream& operator<<(std::ostream& os,
-                         const Dimension<FirstAxis, RestAxis...>& dim) {
+                         const Domain<FirstAxis, RestAxis...>& dim) {
   os << dim.ToString();
   return os;
 }
@@ -103,13 +103,13 @@ std::ostream& operator<<(std::ostream& os,
 }  // namespace pp1
 
 template <size_t FirstAxis, size_t... RestAxis, typename CharT>
-struct std::formatter<pp1::Dimension<FirstAxis, RestAxis...>, CharT>
+struct std::formatter<pp1::Domain<FirstAxis, RestAxis...>, CharT>
     : std::formatter<string_view> {
   template <typename FormatContext>
   FormatContext::iterator format(
-      const pp1::Dimension<FirstAxis, RestAxis...> dimension,
+      const pp1::Domain<FirstAxis, RestAxis...> domain,
       FormatContext& ctx) const {
-    return std::formatter<string_view>::format(dimension.ToString(), ctx);
+    return std::formatter<string_view>::format(domain.ToString(), ctx);
   }
 };
 

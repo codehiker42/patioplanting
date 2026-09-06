@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "arraydata.h"
-#include "dimension.h"
+#include "domain.h"
 #include "pp1_type.h"
 #include "pp1_utility.h"
 
@@ -57,7 +57,7 @@ class Array {
 
   template <size_t RhsFirstAxis, size_t... RhsRestAxis>
   Array<T, RhsFirstAxis, RhsRestAxis...> Reshape(
-      const Dimension<RhsFirstAxis, RhsRestAxis...>& dim_to_shape);
+      const Domain<RhsFirstAxis, RhsRestAxis...>& dim_to_shape);
 
   Array operator*(const T scalar)
     requires Multipliable<T>;
@@ -98,7 +98,7 @@ class Array {
   template <std::input_iterator IT>
   void InitBuffer(IT begin, IT end, AllocationType alloc_type);
 
-  Dimension<FirstAxis, RestAxis...> dim_;
+  Domain<FirstAxis, RestAxis...> domain_;
   std::shared_ptr<ArrayData<T>> data_;
 };
 
@@ -125,33 +125,33 @@ Array<T, FirstAxis, RestAxis...>& Array<T, FirstAxis, RestAxis...>::operator=(
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 Array<T, FirstAxis, RestAxis...>::Array(const AllocationType alloc_type)
   requires std::default_initializable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_)) {}
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain_)) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 template <std::input_iterator IT>
 Array<T, FirstAxis, RestAxis...>::Array(IT begin, IT end,
                                         const AllocationType alloc_type)
   requires std::copyable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, begin, end)) {}
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain_, begin, end)) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 Array<T, FirstAxis, RestAxis...>::Array(std::initializer_list<T> init_list,
                                         const AllocationType alloc_type)
   requires std::copyable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, init_list.begin(),
-                                           init_list.end())) {}
+    : data_(std::make_shared<ArrayData<T>>(
+          alloc_type, domain_, init_list.begin(), init_list.end())) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 Array<T, FirstAxis, RestAxis...>::Array(const std::vector<T>& from_vec,
                                         const AllocationType alloc_type)
   requires std::copyable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_, from_vec.begin(),
-                                           from_vec.end())) {}
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain_,
+                                           from_vec.begin(), from_vec.end())) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 Array<T, FirstAxis, RestAxis...>::Array(T&& t, const AllocationType alloc_type)
   requires std::copyable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, dim_,
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain_,
                                            std::forward<T>(t))) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
@@ -161,15 +161,15 @@ Array<T, FirstAxis, RestAxis...>::Array(const AllocationType alloc_type,
                                         RestTuples&&... rest_elems)
   requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...)
     : data_(std::make_shared<ArrayData<T>>(
-          alloc_type, dim_, std::forward<FirstTuple>(first_elem),
+          alloc_type, domain_, std::forward<FirstTuple>(first_elem),
           std::forward<RestTuples>(rest_elems)...)) {}
 
 template <typename T, size_t FirstAxis, size_t... RestAxis>
 template <size_t RhsFirstAxis, size_t... RhsRestAxis>
 Array<T, RhsFirstAxis, RhsRestAxis...>
 Array<T, FirstAxis, RestAxis...>::Reshape(
-    const Dimension<RhsFirstAxis, RhsRestAxis...>& dim_to_shape) {
-  static_assert(dim_to_shape.Size() == dim_.Size(),
+    const Domain<RhsFirstAxis, RhsRestAxis...>& domain_to_shape) {
+  static_assert(domain_to_shape.Size() == domain_.Size(),
                 "Cannot reshape with the given dimension");
   Array<T, RhsFirstAxis, RhsRestAxis...> reshaped;
   reshaped.data_ = this->data_;
@@ -180,8 +180,8 @@ template <typename T, size_t FirstAxis, size_t... RestAxis>
 template <std::input_iterator IT>
 void Array<T, FirstAxis, RestAxis...>::InitBuffer(IT begin, IT end,
                                                   AllocationType alloc_type) {
-  assert(std::distance(begin, end) == dim_.size());
-  data_ = std::make_shared<ArrayData<T>>(dim_, alloc_type);
+  assert(std::distance(begin, end) == domain_.size());
+  data_ = std::make_shared<ArrayData<T>>(domain_, alloc_type);
   data_->FillIn(begin, end);
 }
 

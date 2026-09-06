@@ -6,7 +6,7 @@
 namespace pp1 {
 
 template <typename... Args>
-inline constexpr auto arguments(Args&&... args) {
+inline constexpr auto Arguments(Args&&... args) {
   return std::forward_as_tuple(args...);
 }
 
