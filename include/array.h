@@ -23,6 +23,7 @@ class Array {
   using value_type = T;
   using pointer = T*;
   using const_pointer = std::add_const_t<T>*;
+  using domain = Domain<FirstDimension, RestDimensions...>;
 
   Array(const Array& other) noexcept;
   Array(const Array&& other) noexcept;
@@ -98,7 +99,6 @@ class Array {
   template <std::input_iterator IT>
   void InitBuffer(IT begin, IT end, AllocationType alloc_type);
 
-  Domain<FirstDimension, RestDimensions...> domain_;
   std::shared_ptr<ArrayData<T>> data_;
 };
 
@@ -129,34 +129,34 @@ template <typename T, size_t FirstDimension, size_t... RestDimensions>
 Array<T, FirstDimension, RestDimensions...>::Array(
     const AllocationType alloc_type)
   requires std::default_initializable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain_)) {}
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain())) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <std::input_iterator IT>
 Array<T, FirstDimension, RestDimensions...>::Array(
     IT begin, IT end, const AllocationType alloc_type)
   requires std::copyable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain_, begin, end)) {}
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain(), begin, end)) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 Array<T, FirstDimension, RestDimensions...>::Array(
     std::initializer_list<T> init_list, const AllocationType alloc_type)
   requires std::copyable<T>
     : data_(std::make_shared<ArrayData<T>>(
-          alloc_type, domain_, init_list.begin(), init_list.end())) {}
+          alloc_type, domain(), init_list.begin(), init_list.end())) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 Array<T, FirstDimension, RestDimensions...>::Array(
     const std::vector<T>& from_vec, const AllocationType alloc_type)
   requires std::copyable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain_,
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain(),
                                            from_vec.begin(), from_vec.end())) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 Array<T, FirstDimension, RestDimensions...>::Array(
     T&& t, const AllocationType alloc_type)
   requires std::copyable<T>
-    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain_,
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, domain(),
                                            std::forward<T>(t))) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
@@ -166,7 +166,7 @@ Array<T, FirstDimension, RestDimensions...>::Array(
     RestTuples&&... rest_elems)
   requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...)
     : data_(std::make_shared<ArrayData<T>>(
-          alloc_type, domain_, std::forward<FirstTuple>(first_elem),
+          alloc_type, domain(), std::forward<FirstTuple>(first_elem),
           std::forward<RestTuples>(rest_elems)...)) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
@@ -174,7 +174,7 @@ template <size_t RhsFirstDimension, size_t... RhsRestDimensions>
 Array<T, RhsFirstDimension, RhsRestDimensions...>
 Array<T, FirstDimension, RestDimensions...>::Reshape(
     const Domain<RhsFirstDimension, RhsRestDimensions...>& domain_to_shape) {
-  static_assert(domain_to_shape.Size() == domain_.Size(),
+  static_assert(domain_to_shape.Size() == domain().Size(),
                 "Cannot reshape with the given dimension");
   Array<T, RhsFirstDimension, RhsRestDimensions...> reshaped;
   reshaped.data_ = this->data_;
@@ -185,8 +185,8 @@ template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <std::input_iterator IT>
 void Array<T, FirstDimension, RestDimensions...>::InitBuffer(
     IT begin, IT end, AllocationType alloc_type) {
-  assert(std::distance(begin, end) == domain_.size());
-  data_ = std::make_shared<ArrayData<T>>(domain_, alloc_type);
+  assert(std::distance(begin, end) == domain().size());
+  data_ = std::make_shared<ArrayData<T>>(domain(), alloc_type);
   data_->FillIn(begin, end);
 }
 
