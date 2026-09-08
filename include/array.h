@@ -56,6 +56,11 @@ class Array {
         RestTuples&&... rest_elems)
     requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...);
 
+  template <typename U, typename V>
+  Array(const MDInitList<T, U, V, FirstDimension, RestDimensions...>&
+            md_init_list,
+        const AllocationType alloc_type = AllocationType::MainMemoryPacked);
+
   template <size_t RhsFirstDimension, size_t... RhsRestDimensions>
   Array<T, RhsFirstDimension, RhsRestDimensions...> Reshape(
       const Domain<RhsFirstDimension, RhsRestDimensions...>& dim_to_shape);
@@ -168,6 +173,16 @@ Array<T, FirstDimension, RestDimensions...>::Array(
     : data_(std::make_shared<ArrayData<T>>(
           alloc_type, domain(), std::forward<FirstTuple>(first_elem),
           std::forward<RestTuples>(rest_elems)...)) {}
+
+template <typename T, size_t FirstDimension, size_t... RestDimensions>
+template <typename U, typename V>
+Array<T, FirstDimension, RestDimensions...>::Array(
+    const MDInitList<T, U, V, FirstDimension, RestDimensions...>& md_init_list,
+    const AllocationType alloc_type)
+    : data_(std::make_shared<ArrayData<T>>(
+          alloc_type, domain(), md_init_list.begin(), md_init_list.end()))
+
+{}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <size_t RhsFirstDimension, size_t... RhsRestDimensions>
