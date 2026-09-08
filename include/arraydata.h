@@ -179,10 +179,13 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
                         FirstTuple&& first_elem, RestTuples&&... rest_elems)
   requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...)
     : ArrayData(alloc_type, domain) {
-  auto FromTuple = [&](size_t n_th, auto&& tuple) {
+  auto FromTuple = [&](const size_t n_th, auto&& tuple) {
     std::apply(
-        [&](auto&&... args) { std::construct_at<T>(AddrOf(n_th), args...); },
-        tuple);
+        [&](auto&&... args) {
+          std::construct_at<T>(AddrOf(n_th),
+                               std::forward<decltype(args)>(args)...);
+        },
+        std::forward<decltype(tuple)>(tuple));
   };
 
   size_t n_creation = 0;
