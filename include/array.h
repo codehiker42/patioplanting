@@ -61,6 +61,10 @@ class Array {
             md_init_list,
         const AllocationType alloc_type = AllocationType::MainMemoryPacked);
 
+  Array(const Seq<T, FirstDimension, RestDimensions...>& seq,
+        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+    requires std::semiregular<T> && std::equality_comparable<T>;
+
   template <size_t RhsFirstDimension, size_t... RhsRestDimensions>
   Array<T, RhsFirstDimension, RhsRestDimensions...> Reshape(
       const Domain<RhsFirstDimension, RhsRestDimensions...>& dim_to_shape);
@@ -183,6 +187,13 @@ Array<T, FirstDimension, RestDimensions...>::Array(
           alloc_type, domain(), md_init_list.begin(), md_init_list.end()))
 
 {}
+
+template <typename T, size_t FirstDimension, size_t... RestDimensions>
+Array<T, FirstDimension, RestDimensions...>::Array(
+    const Seq<T, FirstDimension, RestDimensions...>& seq,
+    const AllocationType alloc_type)
+  requires std::semiregular<T> && std::equality_comparable<T>
+    : data_(std::make_shared<ArrayData<T>>(alloc_type, seq)) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <size_t RhsFirstDimension, size_t... RhsRestDimensions>

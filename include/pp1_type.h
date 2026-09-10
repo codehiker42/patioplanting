@@ -3,9 +3,12 @@
 
 #include <array>
 #include <concepts>
+#include <optional>
 #include <stdfloat>
 #include <tuple>
 #include <type_traits>
+
+#include "domain.h"
 
 namespace pp1 {
 
@@ -117,10 +120,10 @@ MDInitListIterator<T, OuterArr, V, Rank>::MDInitListIterator(
       limit_(rhs.limit_),
       index_(rhs.index_) {}
 
-
 template <typename T, typename OuterArr, typename V, size_t Rank>
 MDInitListIterator<T, OuterArr, V, Rank>&
-MDInitListIterator<T, OuterArr, V, Rank>::operator=(const MDInitListIterator& rhs) {
+MDInitListIterator<T, OuterArr, V, Rank>::operator=(
+    const MDInitListIterator& rhs) {
   index_ = rhs.index_;
   return *this;
 }
@@ -256,6 +259,44 @@ struct MDInitListHelper<T, U, std::array<V, N>, FirstDimension,
   using mdlist_type =
       MDInitListHelper<T, U, V, FirstDimension, RestDimensions..., N>;
 };
+
+template <typename T, size_t FirstDimension, size_t... RestDimensions>
+// requires std::weakly_incrementable<T> && std::is_default_constructible_v<T>
+struct Seq {
+ public:
+  using type = T;
+  using domain = Domain<FirstDimension, RestDimensions...>;
+
+  explicit Seq();
+
+  explicit Seq(T start);
+
+  explicit Seq(T start, T step);
+
+  Seq& By(T by_);
+
+  const T start_;
+  const std::optional<T> stop_;
+  const std::optional<T> by_;
+};
+
+template <typename T, size_t FirstDimension, size_t... RestDimensions>
+Seq<T, FirstDimension, RestDimensions...>::Seq() : start_(T()) {}
+
+template <typename T, size_t FirstDimension, size_t... RestDimensions>
+Seq<T, FirstDimension, RestDimensions...>::Seq(T start)
+    : start_(std::move(start)) {}
+
+template <typename T, size_t FirstDimension, size_t... RestDimensions>
+Seq<T, FirstDimension, RestDimensions...>::Seq(T start, T stop)
+    : start_(std::move(start)), stop_(std::move(stop)) {}
+
+template <typename T, size_t FirstDimension, size_t... RestDimensions>
+Seq<T, FirstDimension, RestDimensions...>&
+Seq<T, FirstDimension, RestDimensions...>::By(T by) {
+  by_ = by;
+  return *this;
+}
 
 }  // namespace pp1
 #endif

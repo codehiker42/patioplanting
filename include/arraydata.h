@@ -58,6 +58,11 @@ class ArrayData {
             FirstTuple&& first_elem, RestTuples&&... rest_elems)
     requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...);
 
+  template <size_t FirstDimension, size_t... RestDimensions>
+  ArrayData(const AllocationType alloc_type,
+            const Seq<T, FirstDimension, RestDimensions...>& seq)
+    requires std::semiregular<T> && std::equality_comparable<T>;
+
   ArrayData(const ArrayData&) = delete;
   ArrayData& operator=(const ArrayData&) = delete;
   ArrayData(ArrayData&& rhs);
@@ -71,7 +76,7 @@ class ArrayData {
   decltype(auto) NthElement(this Self&&, size_t n_th);
 
  private:
-  template <std::invocable<pointer> AcEach, std::invocable Senti,
+  template <std::invocable<pointer, size_t> AcEach, std::invocable Senti,
             std::invocable<pointer> AcUndo>
   void ForEach(AcEach&& each_ac, Senti&& senti, AcUndo&& undo_ac);
 
@@ -130,7 +135,7 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
   requires std::copyable<T> && std::is_destructible_v<T>
     : ArrayData(alloc_type, domain) {
   ForEach(
-      [&](pointer p_t) {
+      [&](pointer p_t, size_t /*unused*/) {
         if constexpr (std::is_trivially_copyable_v<T>) {
           *p_t = std::forward<T>(init);
         } else {
@@ -157,7 +162,7 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
   IT iter = begin;
   bool stop_copying = false;
   ForEach(
-      [&](pointer p_t) {
+      [&](pointer p_t, size_t /*unused*/) {
         if (iter != end) {
           *p_t = *iter++;
         } else if constexpr (std::is_default_constructible_v<T>) {
@@ -195,7 +200,9 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
   try {
     FromTuple(n_creation++, n_elems_, forward<FirstTuple>(first_elem));
     if constexpr (sizeof...(RestTuples) > 0) {
-      ((FromTuple(n_creation++, n_elems_, std::forward<RestTuples>(rest_elems))), ...);
+      ((FromTuple(n_creation++, n_elems_,
+                  std::forward<RestTuples>(rest_elems))),
+       ...);
     }
     if constexpr (std::is_default_constructible_v<T>) {
       for (size_t i = n_creation; i < n_elems_; ++i) {
@@ -208,6 +215,53 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
     }
     throw;
   }
+  t_constructed_ = true;
+}
+
+template <typename T>
+template <size_t FirstDimension, size_t... RestDimensions>
+ArrayData<T>::ArrayData(const AllocationType alloc_type,
+                        const Seq<T, FirstDimension, RestDimensions...>& seq)
+  requires std::semiregular<T> && std::equality_comparable<T>
+    : ArrayData(alloc_type,
+                typename Seq<T, FirstDimension, RestDimensions...>::domain()) {
+  T value = seq.start_;
+  std::optional<T> step;
+  if (seq.stop_ && !seq.by_) {
+    step = (*seq.stop_ - seq.start_) / (n_elems_ - 1);
+  } else if(seq.by_) {
+    step = *seq.by_;
+  }
+  auto inc = [&](const T& prev_val, size_t prev_index) {
+    if (seq.stop_ && value == seq.stop_) {
+      return;
+    } else if (prev_index + 2 >= n_elems_ && seq.stop_) {
+      value = *seq.stop_;
+      return;
+    }
+    if (step) {
+      value += *step;
+    } else if constexpr (std::weakly_incrementable<T>) {
+      ++value;
+    } else {
+      value += static_cast<T>(1);
+    }
+    if (seq.stop_) {
+      value = std::max(value, *seq.stop_);
+    }
+  };
+  ForEach(
+      [&](pointer p_t, size_t n_th) {
+        *p_t = value;
+        inc(value, n_th);
+      },
+      []() { return true; },
+      [](pointer p_t) {
+        if constexpr (!std::is_trivially_copyable_v<T>) {
+          std::destroy_at(p_t);
+        }
+      });
+
   t_constructed_ = true;
 }
 
@@ -259,7 +313,7 @@ decltype(auto) ArrayData<T>::NthElement(this Self&& self, size_t n_th) {
 }
 
 template <typename T>
-template <std::invocable<typename ArrayData<T>::pointer> AcEach,
+template <std::invocable<typename ArrayData<T>::pointer, size_t> AcEach,
           std::invocable Senti,
           std::invocable<typename ArrayData<T>::pointer> AcUndo>
 void ArrayData<T>::ForEach(AcEach&& each_ac, Senti&& senti, AcUndo&& undo_ac) {
@@ -271,7 +325,7 @@ void ArrayData<T>::ForEach(AcEach&& each_ac, Senti&& senti, AcUndo&& undo_ac) {
       if (buf_index != 0 && (i % last_dim_) == 0) {
         buf_index += offset;
       }
-      each_ac(buffer_ + buf_index);
+      each_ac(buffer_ + buf_index, i);
       ++n_succ;
     }
   } catch (...) {
