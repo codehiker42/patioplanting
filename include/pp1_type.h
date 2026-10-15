@@ -37,14 +37,14 @@ concept Subtractable = requires(const T& a, const T& b) {
 };
 
 template <typename T, typename TupleOrNot>
-struct is_tuple_for_typet : std::false_type {};
+struct IsTupleForTypeT : std::false_type {};
 
 template <typename T, typename... Args>
-struct is_tuple_for_typet<T, std::tuple<Args...>>
+struct IsTupleForTypeT<T, std::tuple<Args...>>
     : std::bool_constant<std::constructible_from<T, Args...>> {};
 
 template <class T, class Tuple>
-concept TupleForT = is_tuple_for_typet<T, std::remove_cvref_t<Tuple>>::value;
+concept TupleForT = IsTupleForTypeT<T, std::remove_cvref_t<Tuple>>::value;
 
 template <class T>
 struct IsStdArray : std::false_type {};
@@ -261,7 +261,6 @@ struct MDInitListHelper<T, U, std::array<V, N>, FirstDimension,
 };
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-// requires std::weakly_incrementable<T> && std::is_default_constructible_v<T>
 struct Seq {
  public:
   using type = T;
