@@ -20,7 +20,7 @@ class Index {
   std::optional<signed> by_;
 };
 
-Index::Index(std::optional<signed> from, std::optional<signed> to,
+constexpr Index::Index(std::optional<signed> from, std::optional<signed> to,
              std::optional<signed> by)
     : from_(from), to_(to), by_(by) {}
 
