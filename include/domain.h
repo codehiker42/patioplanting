@@ -26,7 +26,8 @@ namespace pp1 {
 template <size_t FirstDimension, size_t... RestDimensions>
 struct Domain {
  public:
-  Domain();
+  static constexpr size_t RankN = sizeof...(RestDimensions) + 1;
+  constexpr Domain();
 
   static constexpr size_t Size();
 
@@ -38,13 +39,15 @@ struct Domain {
 
   static constexpr std::string ToString();
 
+  static constexpr std::array<size_t, RankN> Strides();
+
   template <size_t AFirstDimension, size_t... ARestDimensions>
   friend std::ostream& operator<<(
       std::ostream& os, const Domain<AFirstDimension, ARestDimensions...>& dim);
 };
 
 template <size_t FirstDimension, size_t... RestDimensions>
-Domain<FirstDimension, RestDimensions...>::Domain() = default;
+constexpr Domain<FirstDimension, RestDimensions...>::Domain() = default;
 
 template <size_t FirstDimension, size_t... RestDimensions>
 constexpr size_t Domain<FirstDimension, RestDimensions...>::Size() {
@@ -68,7 +71,7 @@ constexpr size_t Domain<FirstDimension, RestDimensions...>::Size(
 
 template <size_t FirstDimension, size_t... RestDimensions>
 constexpr size_t Domain<FirstDimension, RestDimensions...>::Rank() {
-  return sizeof...(RestDimensions) + 1;
+  return RankN;
 }
 
 template <size_t FirstDimension, size_t... RestDimensions>
@@ -92,6 +95,17 @@ constexpr std::string Domain<FirstDimension, RestDimensions...>::ToString() {
   }
   repr += "]";
   return repr;
+}
+
+template <size_t FirstDimension, size_t... RestDimensions>
+constexpr auto Domain<FirstDimension, RestDimensions...>::Strides()
+    -> std::array<size_t, Domain<FirstDimension, RestDimensions...>::RankN> {
+  std::array<size_t, RankN> strides{RestDimensions..., 1U};
+
+  for (int i = std::ssize(strides) - 3; i >= 0; --i) {
+    strides[i] *= strides.at(i + 1);
+  }
+  return strides;
 }
 
 template <size_t FirstDimension, size_t... RestDimensions>

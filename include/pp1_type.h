@@ -210,18 +210,14 @@ class MDInitList {
 
  private:
   const outer_array_t md_arr_;
-  std::array<size_t, domain::Rank()> n_dims_{RestDimensions...,
-                                             static_cast<size_t>(1)};
+  const std::array<size_t, domain::Rank()> n_dims_;
 };
 
 template <typename T, typename U, typename V, size_t FirstDimension,
           size_t... RestDimensions>
 MDInitList<T, U, V, FirstDimension, RestDimensions...>::MDInitList(
     outer_array_t md_arr)
-    : md_arr_(std::move(md_arr)) {
-  for (int i = std::ssize(n_dims_) - 3; i >= 0; --i) {
-    n_dims_[i] *= n_dims_.at(i + 1);
-  }
+    : md_arr_(std::move(md_arr)), n_dims_(domain::Strides()) {
 }
 
 template <typename T, typename U, typename V, size_t FirstDimension,
