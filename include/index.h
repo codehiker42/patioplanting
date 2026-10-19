@@ -210,8 +210,8 @@ Slice<Notation, HasFrom, From, HasUntil, Until, By>::ToIndices() noexcept {
 }
 
 namespace Dim {
-inline static constexpr Slice All = Slice<"::">();
-inline static constexpr Slice Reverse = Slice<"::-1">();
+inline static constexpr Slice<"::"> All{};
+inline static constexpr Slice<"::-1"> Reverse{};
 }  // namespace Dim
 
 }  // namespace pp1
