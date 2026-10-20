@@ -28,70 +28,77 @@ class Array {
   using const_pointer = std::add_const_t<T>*;
   using domain = Domain<FirstDimension, RestDimensions...>;
 
-  Array(const Array& other) noexcept;
-  Array(const Array&& other) noexcept;
+  constexpr Array(const Array& other) noexcept;
+  constexpr Array(const Array&& other) noexcept;
 
-  Array& operator=(const Array& other) noexcept;
-  Array& operator=(Array&& other) noexcept;
+  constexpr Array& operator=(const Array& other) noexcept;
+  constexpr Array& operator=(Array&& other) noexcept;
 
-  Array(const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+  constexpr Array(
+      const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::default_initializable<T>;
 
   template <std::input_iterator IT>
-  Array(IT begin, IT end,
-        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+  constexpr Array(
+      IT begin, IT end,
+      const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
-  Array(std::initializer_list<T> init_list,
-        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+  constexpr Array(
+      std::initializer_list<T> init_list,
+      const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
-  Array(const std::vector<T>& from_vec,
-        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+  constexpr Array(
+      const std::vector<T>& from_vec,
+      const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
-  Array(T&& t,
-        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+  constexpr Array(
+      T&& t, const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::copyable<T>;
 
   template <typename FirstTuple, typename... RestTuples>
-  Array(const AllocationType alloc_type, FirstTuple&& first_elem,
-        RestTuples&&... rest_elems)
+  constexpr Array(const AllocationType alloc_type, FirstTuple&& first_elem,
+                  RestTuples&&... rest_elems)
     requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...);
 
   template <typename U, typename V>
-  Array(const MDInitList<T, U, V, FirstDimension, RestDimensions...>&
-            md_init_list,
-        const AllocationType alloc_type = AllocationType::MainMemoryPacked);
+  constexpr Array(
+      const MDInitList<T, U, V, FirstDimension, RestDimensions...>&
+          md_init_list,
+      const AllocationType alloc_type = AllocationType::MainMemoryPacked);
 
-  Array(const Seq<T, FirstDimension, RestDimensions...>& seq,
-        const AllocationType alloc_type = AllocationType::MainMemoryPacked)
+  constexpr Array(
+      const Seq<T, FirstDimension, RestDimensions...>& seq,
+      const AllocationType alloc_type = AllocationType::MainMemoryPacked)
     requires std::semiregular<T> && std::equality_comparable<T>;
 
-  Array(std::shared_ptr<ArrayData<T>> data, const std::vector<size_t> strides,
-        const std::vector<std::vector<size_t>> offsets) noexcept;
+  constexpr Array(std::shared_ptr<ArrayData<T>> data,
+                  const std::vector<size_t> strides,
+                  const std::vector<std::vector<size_t>> offsets) noexcept;
 
   template <size_t RhsFirstDimension, size_t... RhsRestDimensions>
-  Array<T, RhsFirstDimension, RhsRestDimensions...> Reshape(
+  constexpr Array<T, RhsFirstDimension, RhsRestDimensions...> Reshape(
       const Domain<RhsFirstDimension, RhsRestDimensions...>& dim_to_shape);
 
   template <typename Self>
-  T& operator[](this Self&&, const size_t index)
+  constexpr T& operator[](this Self&&, const size_t index)
     requires(sizeof...(RestDimensions) == 0);
 
-  Array<T, RestDimensions...> operator[](const size_t index)
+  constexpr Array<T, RestDimensions...> operator[](const size_t index)
     requires(sizeof...(RestDimensions) != 0);
 
   template <size_t... Indexes>
-  Array<T, (sizeof...(Indexes)), RestDimensions...> operator[](
+  constexpr Array<T, (sizeof...(Indexes)), RestDimensions...> operator[](
       const Indices<Indexes...>& indices) const;
 
   template <int... SigIndexes>
-  Array<T, (sizeof...(SigIndexes)), RestDimensions...> operator[](
+  constexpr Array<T, (sizeof...(SigIndexes)), RestDimensions...> operator[](
       const SigIndices<SigIndexes...>& sig_indices) const;
 
   template <SliceNotation Notation>
-  auto operator[](const Slice<Notation>& slice) const
+  constexpr auto operator[](const Slice<Notation>& slice) const
       -> Array<T, Slice<Notation>::template ToIndices<FirstDimension>().Size(),
                RestDimensions...>;
 
@@ -140,17 +147,19 @@ class Array {
 };
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>::Array(const Array& other) noexcept
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
+    const Array& other) noexcept
     : data_(other.data_), strides_(other.strides_), offsets_(other.offsets_) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>::Array(const Array&& other) noexcept
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
+    const Array&& other) noexcept
     : data_(std::move(other->data_)),
       strides_(other.strides_),
       offsets_(std::move(other.offsets_)) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>&
+constexpr Array<T, FirstDimension, RestDimensions...>&
 Array<T, FirstDimension, RestDimensions...>::operator=(
     const Array<T, FirstDimension, RestDimensions...>& other) noexcept {
   this->data_ = other->data_;
@@ -158,7 +167,7 @@ Array<T, FirstDimension, RestDimensions...>::operator=(
 }
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>&
+constexpr Array<T, FirstDimension, RestDimensions...>&
 Array<T, FirstDimension, RestDimensions...>::operator=(
     Array<T, FirstDimension, RestDimensions...>&& other) noexcept {
   this->data_ = std::move(other);
@@ -166,7 +175,7 @@ Array<T, FirstDimension, RestDimensions...>::operator=(
 }
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>::Array(
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
     const AllocationType alloc_type)
   requires std::default_initializable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, domain())),
@@ -174,14 +183,14 @@ Array<T, FirstDimension, RestDimensions...>::Array(
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <std::input_iterator IT>
-Array<T, FirstDimension, RestDimensions...>::Array(
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
     IT begin, IT end, const AllocationType alloc_type)
   requires std::copyable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, domain(), begin, end)),
       strides_(domain::StrideVec()) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>::Array(
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
     std::initializer_list<T> init_list, const AllocationType alloc_type)
   requires std::copyable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, domain(),
@@ -189,7 +198,7 @@ Array<T, FirstDimension, RestDimensions...>::Array(
       strides_(domain::StrideVec()) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>::Array(
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
     const std::vector<T>& from_vec, const AllocationType alloc_type)
   requires std::copyable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, domain(),
@@ -197,7 +206,7 @@ Array<T, FirstDimension, RestDimensions...>::Array(
       strides_(domain::StrideVec()) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>::Array(
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
     T&& t, const AllocationType alloc_type)
   requires std::copyable<T>
     : data_(std::make_shared<ArrayData<T>>(alloc_type, domain(),
@@ -206,7 +215,7 @@ Array<T, FirstDimension, RestDimensions...>::Array(
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <typename FirstTuple, typename... RestTuples>
-Array<T, FirstDimension, RestDimensions...>::Array(
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
     const AllocationType alloc_type, FirstTuple&& first_elem,
     RestTuples&&... rest_elems)
   requires TupleForT<T, FirstTuple> && (TupleForT<T, RestTuples> && ...)
@@ -217,7 +226,7 @@ Array<T, FirstDimension, RestDimensions...>::Array(
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <typename U, typename V>
-Array<T, FirstDimension, RestDimensions...>::Array(
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
     const MDInitList<T, U, V, FirstDimension, RestDimensions...>& md_init_list,
     const AllocationType alloc_type)
     : data_(std::make_shared<ArrayData<T>>(
@@ -225,7 +234,7 @@ Array<T, FirstDimension, RestDimensions...>::Array(
       strides_(domain::StrideVec()) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>::Array(
+constexpr Array<T, FirstDimension, RestDimensions...>::Array(
     const Seq<T, FirstDimension, RestDimensions...>& seq,
     const AllocationType alloc_type)
   requires std::semiregular<T> && std::equality_comparable<T>
@@ -233,14 +242,14 @@ Array<T, FirstDimension, RestDimensions...>::Array(
       strides_(domain::StrideVec()) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, FirstDimension, RestDimensions...>::Array::Array(
+constexpr Array<T, FirstDimension, RestDimensions...>::Array::Array(
     std::shared_ptr<ArrayData<T>> data, const std::vector<size_t> strides,
     const std::vector<std::vector<size_t>> offsets) noexcept
     : data_(data), strides_(strides), offsets_(std::move(offsets)) {}
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <size_t RhsFirstDimension, size_t... RhsRestDimensions>
-Array<T, RhsFirstDimension, RhsRestDimensions...>
+constexpr Array<T, RhsFirstDimension, RhsRestDimensions...>
 Array<T, FirstDimension, RestDimensions...>::Reshape(
     const Domain<RhsFirstDimension, RhsRestDimensions...>& domain_to_shape) {
   static_assert(domain_to_shape.Size() == domain().Size(),
@@ -252,8 +261,8 @@ Array<T, FirstDimension, RestDimensions...>::Reshape(
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <typename Self>
-T& Array<T, FirstDimension, RestDimensions...>::operator[](this Self&& self,
-                                                           const size_t index)
+constexpr T& Array<T, FirstDimension, RestDimensions...>::operator[](
+    this Self&& self, const size_t index)
   requires(sizeof...(RestDimensions) == 0)
 {
   size_t data_offset = 0;
@@ -268,7 +277,7 @@ T& Array<T, FirstDimension, RestDimensions...>::operator[](this Self&& self,
 }
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
-Array<T, RestDimensions...>
+constexpr Array<T, RestDimensions...>
 Array<T, FirstDimension, RestDimensions...>::operator[](const size_t index)
   requires(sizeof...(RestDimensions) != 0)
 {
@@ -294,7 +303,7 @@ Array<T, FirstDimension, RestDimensions...>::operator[](const size_t index)
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <size_t... Indexes>
-Array<T, (sizeof...(Indexes)), RestDimensions...>
+constexpr Array<T, (sizeof...(Indexes)), RestDimensions...>
 Array<T, FirstDimension, RestDimensions...>::operator[](
     const Indices<Indexes...>& indices) const {
   constexpr size_t max_index = Max<Indexes...>();
@@ -325,7 +334,7 @@ Array<T, FirstDimension, RestDimensions...>::operator[](
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <int... SigIndexes>
-Array<T, (sizeof...(SigIndexes)), RestDimensions...>
+constexpr Array<T, (sizeof...(SigIndexes)), RestDimensions...>
 Array<T, FirstDimension, RestDimensions...>::operator[](
     const SigIndices<SigIndexes...>& sig_indices) const {
   return operator[](sig_indices.ToIndices());
@@ -333,7 +342,7 @@ Array<T, FirstDimension, RestDimensions...>::operator[](
 
 template <typename T, size_t FirstDimension, size_t... RestDimensions>
 template <SliceNotation Notation>
-auto Array<T, FirstDimension, RestDimensions...>::operator[](
+constexpr auto Array<T, FirstDimension, RestDimensions...>::operator[](
     const Slice<Notation>& slice) const
     -> Array<T, Slice<Notation>::template ToIndices<FirstDimension>().Size(),
              RestDimensions...> {
