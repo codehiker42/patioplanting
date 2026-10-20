@@ -229,7 +229,7 @@ ArrayData<T>::ArrayData(const AllocationType alloc_type,
   std::optional<T> step;
   if (seq.stop_ && !seq.by_) {
     step = (*seq.stop_ - seq.start_) / (n_elems_ - 1);
-  } else if(seq.by_) {
+  } else if (seq.by_) {
     step = *seq.by_;
   }
   auto inc = [&](const T& prev_val, size_t prev_index) {

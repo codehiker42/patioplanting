@@ -4,7 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <format>
-
+#include <vector>
 namespace {
 
 constexpr void AppendAxis(std::string& result, size_t axis) {
@@ -40,6 +40,8 @@ struct Domain {
   static constexpr std::string ToString();
 
   static constexpr std::array<size_t, RankN> Strides();
+
+  static std::vector<size_t> StrideVec();
 
   template <size_t AFirstDimension, size_t... ARestDimensions>
   friend std::ostream& operator<<(
@@ -106,6 +108,12 @@ constexpr auto Domain<FirstDimension, RestDimensions...>::Strides()
     strides[i] *= strides.at(i + 1);
   }
   return strides;
+}
+
+template <size_t FirstDimension, size_t... RestDimensions>
+std::vector<size_t> Domain<FirstDimension, RestDimensions...>::StrideVec() {
+  const auto stride_arr = Strides();
+  return std::vector<size_t>(stride_arr.begin(), stride_arr.end());
 }
 
 template <size_t FirstDimension, size_t... RestDimensions>

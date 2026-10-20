@@ -1,6 +1,7 @@
 #ifndef _PP1_INDEX_H_
 #define _PP1_INDEX_H_
 
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <optional>
@@ -10,9 +11,12 @@ namespace pp1 {
 
 template <size_t... Indexes>
 struct Indices {
+  constexpr static size_t size = sizeof...(Indexes);
+
   constexpr Indices() noexcept;
 
   constexpr static size_t Size() noexcept;
+  constexpr static std::array<size_t, size> AsArr() noexcept;
 };
 
 template <size_t... Indexes>
@@ -20,7 +24,12 @@ constexpr Indices<Indexes...>::Indices() noexcept = default;
 
 template <size_t... Indexes>
 constexpr size_t Indices<Indexes...>::Size() noexcept {
-  return sizeof...(Indexes);
+  return size;
+}
+
+template <size_t... Indexes>
+constexpr std::array<size_t, Indices<Indexes...>::size> AsArr() noexcept {
+  return {Indexes...};
 }
 
 template <int... SigIndexes>
@@ -55,7 +64,7 @@ SigIndices<SigIndexes...>::ToIndices() noexcept {
   return {};
 }
 
-template <std::size_t N>
+template <size_t N>
 struct SliceNotation {
   constexpr SliceNotation(const char (&notation)[N]) noexcept;
 
@@ -69,7 +78,7 @@ struct SliceNotation {
   int by_{1};
 };
 
-template <std::size_t N>
+template <size_t N>
 constexpr SliceNotation<N>::SliceNotation(const char (&notation)[N]) noexcept {
   int colon_index[2] = {-1, -1};
   for (int i = 0, colon_idx = 0; i < N; ++i) {
@@ -105,7 +114,7 @@ constexpr SliceNotation<N>::SliceNotation(const char (&notation)[N]) noexcept {
   }
 }
 
-template <std::size_t N>
+template <size_t N>
 constexpr std::optional<int> SliceNotation<N>::ToNumber(
     const char* begin, const char* end) noexcept {
   while (begin != end && *begin == ' ') {
@@ -196,9 +205,16 @@ struct Slice {
                            SeqSizeN<Dim, HasFrom, From, HasUntil, Until, By>(),
                            By>::type;
 
+  constexpr Slice() noexcept;
+
   template <size_t Dim>
   constexpr static SliceIndexReturnType<Dim> ToIndices() noexcept;
 };
+
+template <SliceNotation Notation, bool HasFrom, int From, bool HasUntil,
+          int Until, int By>
+constexpr Slice<Notation, HasFrom, From, HasUntil, Until,
+                By>::Slice() noexcept = default;
 
 template <SliceNotation Notation, bool HasFrom, int From, bool HasUntil,
           int Until, int By>
